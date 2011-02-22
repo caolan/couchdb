@@ -57,6 +57,7 @@ var resolveModule = function(names, mod, root) {
 };
 
 var Couch = {
+  module_cache: {},
   // moving this away from global so we can move to json2.js later
   toJSON : function (val) {
     return JSON.stringify(val);
@@ -69,16 +70,19 @@ var Couch = {
           var require = function(name, module) {
             module = module || {};
             var newModule = resolveModule(name.split('/'), module, ddoc);
-            var s = "function (module, exports, require) { " + newModule.current + " }";
-            try {
-              var func = sandbox ? evalcx(s, sandbox) : eval(s);
-              func.apply(sandbox, [newModule, newModule.exports, function(name) {
-                return require(name, newModule);
-              }]);
-            } catch(e) { 
-              throw ["error","compilation_error","Module require('"+name+"') raised error "+e.toSource()]; 
+            if (!Couch.module_cache[newModule.id]) {
+                var s = "function (module, exports, require) { " + newModule.current + " }";
+                try {
+                  var func = sandbox ? evalcx(s, sandbox) : eval(s);
+                  func.apply(sandbox, [newModule, newModule.exports, function(name) {
+                    return require(name, newModule);
+                  }]);
+                } catch(e) { 
+                  throw ["error","compilation_error","Module require('"+name+"') raised error "+e.toSource()]; 
+                }
+                Couch.module_cache[newModule.id] = newModule.exports;
             }
-            return newModule.exports;
+            return Couch.module_cache[newModule.id];
           };
           sandbox.require = require;
         }

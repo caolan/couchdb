@@ -16,6 +16,7 @@ var State = {
     State.funs = [];
     State.lib = null;
     State.query_config = config || {};
+    Couch.module_cache = {};
     init_sandbox();
     gc();
     print("true"); // indicates success

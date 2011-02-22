@@ -216,13 +216,8 @@ var Render = (function() {
     return path.length > 5;
   };
 
-  function resetModuleCache() {
-    Couch.module_cache = {};
-  };
-
   function runShow(fun, ddoc, args) {
     try {
-      resetModuleCache();
       resetList();
       Mime.resetProvides();
       var resp = fun.apply(ddoc, args) || {};
@@ -260,7 +255,6 @@ var Render = (function() {
 
   function runUpdate(fun, ddoc, args) {
     try {
-      resetModuleCache();
       var method = args[1].method;
       // for analytics logging applications you might want to remove the next line
       if (method == "GET") throw(["error","method_not_allowed","Update functions do not allow GET"]);
@@ -287,7 +281,6 @@ var Render = (function() {
 
   function runList(listFun, ddoc, args) {
     try {
-      resetModuleCache();
       Mime.resetProvides();
       resetList();
       var head = args[0];

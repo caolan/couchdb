@@ -50,7 +50,9 @@ couchTests.design_docs = function(debug) {
             "exports.foo = require('whatever/stringzone');",
           upper : "exports.testing = require('./whynot').test.string.toUpperCase()+" +
             "module.id+require('./whynot').foo.string",
-          cache_test: "exports.count = 0; exports.tick = function () { return ++exports.count; };"
+          cache_test: "exports.count = 0; exports.tick = function () { return ++exports.count; };",
+          circular_one: "require('./circular_two'); exports.name = 'One';",
+          circular_two: "require('./circular_one'); exports.name = 'Two';"
         }
       },
       views: {
@@ -147,6 +149,10 @@ couchTests.design_docs = function(debug) {
           (function() {
             var cache_test = require('whatever/commonjs/cache_test');
             return cache_test.tick().toString();
+          }).toString(),
+        circular_require:
+          (function() {
+            return require('whatever/commonjs/circular_one').name;
           }).toString()
       }
     }; // designDoc
@@ -202,6 +208,11 @@ couchTests.design_docs = function(debug) {
     xhr = CouchDB.request("GET", "/test_suite_db/_design/test/_show/cache_test2?_=" + Math.random());
     TEquals(xhr.status, 200);
     TEquals("4", xhr.responseText);
+
+    // test circular commonjs dependencies
+    xhr = CouchDB.request("GET", "/test_suite_db/_design/test/_show/circular_require");
+    TEquals(xhr.status, 200);
+    TEquals("One", xhr.responseText);
 
     var prev_view_sig = db.designInfo("_design/test").view_index.signature;
     var prev_view_size = db.designInfo("_design/test").view_index.disk_size;

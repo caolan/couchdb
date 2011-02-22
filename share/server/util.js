@@ -41,7 +41,7 @@ var resolveModule = function(names, mod, root) {
     return resolveModule(names, {
       parent : mod.parent.parent,
       current : mod.parent.current,
-      id : mod.id
+      id : mod.id.slice(0, mod.id.lastIndexOf('/')),
     });
   } else if (root) {
     mod = {current : root};
@@ -70,7 +70,10 @@ var Couch = {
           var require = function(name, module) {
             module = module || {};
             var newModule = resolveModule(name.split('/'), module, ddoc);
-            if (!Couch.module_cache[newModule.id]) {
+            if (!Couch.module_cache.hasOwnProperty(newModule.id)) {
+                // create empty exports object before executing the module,
+                // stops circular requires from filling the stack
+                Couch.module_cache[newModule.id] = {};
                 var s = "function (module, exports, require) { " + newModule.current + " }";
                 try {
                   var func = sandbox ? evalcx(s, sandbox) : eval(s);

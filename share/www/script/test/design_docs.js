@@ -49,7 +49,8 @@ couchTests.design_docs = function(debug) {
           whynot : "exports.test = require('../stringzone'); " +
             "exports.foo = require('whatever/stringzone');",
           upper : "exports.testing = require('./whynot').test.string.toUpperCase()+" +
-            "module.id+require('./whynot').foo.string"
+            "module.id+require('./whynot').foo.string",
+          cache_test: "exports.count = 0; exports.tick = function () { return ++exports.count; };"
         }
       },
       views: {
@@ -134,6 +135,18 @@ couchTests.design_docs = function(debug) {
           (function() {
             var lib = require('whatever/commonjs/upper');
             return JSON.stringify(this);
+          }).toString(),
+        cache_test1:
+          (function() {
+            var cache_test = require('whatever/commonjs/cache_test');
+            cache_test.tick();
+            cache_test = require('whatever/commonjs/cache_test');
+            return cache_test.tick().toString();
+          }).toString(),
+        cache_test2:
+          (function() {
+            var cache_test = require('whatever/commonjs/cache_test');
+            return cache_test.tick().toString();
           }).toString()
       }
     }; // designDoc
@@ -173,6 +186,22 @@ couchTests.design_docs = function(debug) {
     xhr = CouchDB.request("GET", "/test_suite_db/_design/test/_show/circular");
     T(xhr.status == 200);
     TEquals("javascript", JSON.parse(xhr.responseText).language);
+
+    // test commonjs module cache by checking for state persisting between
+    // require calls
+    xhr = CouchDB.request("GET", "/test_suite_db/_design/test/_show/cache_test1?_=" + Math.random());
+    TEquals(xhr.status, 200);
+    TEquals("2", xhr.responseText);
+
+    // test commonjs module cache by checking for state persisting between
+    // requests
+    xhr = CouchDB.request("GET", "/test_suite_db/_design/test/_show/cache_test2?_=" + Math.random());
+    TEquals(xhr.status, 200);
+    TEquals("3", xhr.responseText);
+
+    xhr = CouchDB.request("GET", "/test_suite_db/_design/test/_show/cache_test2?_=" + Math.random());
+    TEquals(xhr.status, 200);
+    TEquals("4", xhr.responseText);
 
     var prev_view_sig = db.designInfo("_design/test").view_index.signature;
     var prev_view_size = db.designInfo("_design/test").view_index.disk_size;

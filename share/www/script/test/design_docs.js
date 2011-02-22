@@ -199,15 +199,14 @@ couchTests.design_docs = function(debug) {
     TEquals(xhr.status, 200);
     TEquals("2", xhr.responseText);
 
-    // test commonjs module cache by checking for state persisting between
-    // requests
+    // check that commonjs modules cannot persist state between requests
     xhr = CouchDB.request("GET", "/test_suite_db/_design/test/_show/cache_test2?_=" + Math.random());
     TEquals(xhr.status, 200);
-    TEquals("3", xhr.responseText);
+    TEquals("1", xhr.responseText);
 
     xhr = CouchDB.request("GET", "/test_suite_db/_design/test/_show/cache_test2?_=" + Math.random());
     TEquals(xhr.status, 200);
-    TEquals("4", xhr.responseText);
+    TEquals("1", xhr.responseText);
 
     // test circular commonjs dependencies
     xhr = CouchDB.request("GET", "/test_suite_db/_design/test/_show/circular_require");

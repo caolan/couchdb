@@ -30,7 +30,7 @@ var resolveModule = function(names, mod, root) {
       throw ["error", "invalid_require_path", 'Object has no parent '+JSON.stringify(mod.current)];
     }
     return resolveModule(names, {
-      id : mod.id.slice(0, mod.id.lastIndexOf('/')),
+      id : mod.id.slice(0, mod.id.lastIndexOf('/')).slice(0, mod.id.lastIndexOf('/')),
       parent : mod.parent.parent.parent,
       current : mod.parent.parent.current
     });
@@ -41,7 +41,7 @@ var resolveModule = function(names, mod, root) {
     return resolveModule(names, {
       parent : mod.parent.parent,
       current : mod.parent.current,
-      id : mod.id
+      id : mod.id.slice(0, mod.id.lastIndexOf('/'))
     });
   } else if (root) {
     mod = {current : root};
@@ -66,19 +66,28 @@ var Couch = {
     try {
       if (sandbox) {
         if (ddoc) {
+          if (!ddoc._module_cache) {
+            ddoc._module_cache = {};
+          }
           var require = function(name, module) {
             module = module || {};
             var newModule = resolveModule(name.split('/'), module, ddoc);
-            var s = "function (module, exports, require) { " + newModule.current + " }";
-            try {
-              var func = sandbox ? evalcx(s, sandbox) : eval(s);
-              func.apply(sandbox, [newModule, newModule.exports, function(name) {
-                return require(name, newModule);
-              }]);
-            } catch(e) { 
-              throw ["error","compilation_error","Module require('"+name+"') raised error "+e.toSource()]; 
+            if (!ddoc._module_cache.hasOwnProperty(newModule.id)) {
+              // create empty exports object before executing the module,
+              // stops circular requires from filling the stack
+              ddoc._module_cache[newModule.id] = {};
+              var s = "function (module, exports, require) { " + newModule.current + " }";
+              try {
+                var func = sandbox ? evalcx(s, sandbox) : eval(s);
+                func.apply(sandbox, [newModule, newModule.exports, function(name) {
+                  return require(name, newModule);
+                }]);
+              } catch(e) { 
+                throw ["error","compilation_error","Module require('"+name+"') raised error "+e.toSource()]; 
+              }
+              ddoc._module_cache[newModule.id] = newModule.exports;
             }
-            return newModule.exports;
+            return ddoc._module_cache[newModule.id];
           };
           sandbox.require = require;
         }

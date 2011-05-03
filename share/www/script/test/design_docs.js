@@ -49,7 +49,9 @@ couchTests.design_docs = function(debug) {
           whynot : "exports.test = require('../stringzone'); " +
             "exports.foo = require('whatever/stringzone');",
           upper : "exports.testing = require('./whynot').test.string.toUpperCase()+" +
-            "module.id+require('./whynot').foo.string"
+            "module.id+require('./whynot').foo.string",
+          circular_one: "require('./circular_two'); exports.name = 'One';",
+          circular_two: "require('./circular_one'); exports.name = 'Two';"
         }
       },
       views: {
@@ -134,6 +136,10 @@ couchTests.design_docs = function(debug) {
           (function() {
             var lib = require('whatever/commonjs/upper');
             return JSON.stringify(this);
+          }).toString(),
+        circular_require:
+          (function() {
+            return require('whatever/commonjs/circular_one').name;
           }).toString()
       }
     }; // designDoc
@@ -173,6 +179,31 @@ couchTests.design_docs = function(debug) {
     xhr = CouchDB.request("GET", "/test_suite_db/_design/test/_show/circular");
     T(xhr.status == 200);
     TEquals("javascript", JSON.parse(xhr.responseText).language);
+
+    // test circular commonjs dependencies
+    xhr = CouchDB.request(
+      "GET",
+      "/test_suite_db/_design/test/_show/circular_require"
+    );
+    TEquals(200, xhr.status);
+    TEquals("One", xhr.responseText);
+
+    // Test that changes to the design doc properly invalidate cached modules:
+
+    // update the designDoc and replace
+    designDoc.whatever.commonjs.circular_one = "exports.name = 'Updated';"
+    T(db.save(designDoc).ok);
+
+    // request circular_require show function again and check the response has
+    // changed
+    xhr = CouchDB.request(
+      "GET",
+      "/test_suite_db/_design/test/_show/circular_require"
+    );
+    TEquals(200, xhr.status);
+    TEquals("Updated", xhr.responseText);
+
+
 
     var prev_view_sig = db.designInfo("_design/test").view_index.signature;
     var prev_view_size = db.designInfo("_design/test").view_index.disk_size;

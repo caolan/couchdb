@@ -30,18 +30,18 @@ var resolveModule = function(names, mod, root) {
       throw ["error", "invalid_require_path", 'Object has no parent '+JSON.stringify(mod.current)];
     }
     return resolveModule(names, {
-      id : mod.id.slice(0, mod.id.lastIndexOf('/')).slice(0, mod.id.lastIndexOf('/')),
-      parent : mod.parent.parent.parent,
-      current : mod.parent.parent.current
+      id : mod.id.slice(0, mod.id.lastIndexOf('/')),
+      parent : mod.parent.parent,
+      current : mod.parent.current
     });
   } else if (n == '.') {
     if (!mod.parent) {
       throw ["error", "invalid_require_path", 'Object has no parent '+JSON.stringify(mod.current)];
     }
     return resolveModule(names, {
-      parent : mod.parent.parent,
-      current : mod.parent.current,
-      id : mod.id.slice(0, mod.id.lastIndexOf('/'))
+      parent : mod.parent,
+      current : mod.current,
+      id : mod.id
     });
   } else if (root) {
     mod = {current : root};
@@ -71,7 +71,7 @@ var Couch = {
           }
           var require = function(name, module) {
             module = module || {};
-            var newModule = resolveModule(name.split('/'), module, ddoc);
+            var newModule = resolveModule(name.split('/'), module.parent, ddoc);
             if (!ddoc._module_cache.hasOwnProperty(newModule.id)) {
               // create empty exports object before executing the module,
               // stops circular requires from filling the stack
